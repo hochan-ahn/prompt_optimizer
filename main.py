@@ -70,8 +70,11 @@ if "chat" not in st.session_state:
 # 채팅 히스토리 표시 (말풍선 형태로 교차 출력)
 for message in st.session_state.messages:
     with st.chat_message("user" if message["role"] == "user" else "assistant"):
-        # AI 답변도 st.markdown으로 렌더링해 Markdown 포맷을 유지
-        st.markdown(message["content"])
+        # AI 답변은 코드블록(마크다운 언어)으로 출력
+        if message["role"] == "assistant":
+            st.code(message["content"], language="markdown")
+        else:
+            st.markdown(message["content"])
 
 # 사용자 입력 (chat_input으로 말풍선 UX)
 user_input = st.chat_input("문제나 답변을 입력해주세요")
