@@ -62,11 +62,25 @@ st.markdown("""
 st.markdown('<h1 class="main-title">프롬프트 개선 테스트</h1>', unsafe_allow_html=True)
 st.markdown('<p class="description">프롬프트 개선 테스트용 페이지입니다.</p>', unsafe_allow_html=True)
 
-# Gemini API 설정
+# Gemini API 설정을 위한 사이드바 (사용자별 API 키 입력)
+with st.sidebar:
+    st.header("⚙️ Gemini API 설정")
+    user_api_key = st.text_input(
+        "Gemini API Key를 입력하세요",
+        type="password",
+        help="Google AI Studio에서 발급받은 본인의 Gemini API 키를 입력하면 됩니다."
+    )
+
+# 키가 없으면 진행 중단 (모든 사용자가 자기 키를 넣어야 사용 가능)
+if not user_api_key:
+    st.warning("왼쪽 사이드바에 **Gemini API Key**를 입력해야 챗봇을 사용할 수 있습니다.")
+    st.stop()
+
+# Gemini API 설정 (사용자가 입력한 키로 설정)
 try:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    genai.configure(api_key=user_api_key)
 except Exception as e:
-    st.error("API 키를 설정해주세요! (.streamlit/secrets.toml 파일에 GOOGLE_API_KEY를 추가해주세요)")
+    st.error(f"API 키 설정 중 오류가 발생했습니다: {e}")
     st.stop()
 
 # 모델 설정
@@ -177,4 +191,3 @@ for message in st.session_state.messages:
                 st.code(strip_blockquote_prefix(message["content"]), language="markdown")
         else:
             st.markdown(message["content"])
-
