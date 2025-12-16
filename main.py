@@ -67,19 +67,20 @@ if "chat" not in st.session_state:
     initial_message = "프롬프트를 입력해주세요"
     st.session_state.messages.append({"role": "assistant", "content": initial_message})
 
-# 채팅 히스토리 표시
+# 채팅 히스토리 표시 (말풍선 형태로 교차 출력)
 for message in st.session_state.messages:
-    if message["role"] == "user":
-        st.markdown(f'<div class="chat-message user-message">👤 {message["content"]}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div class="chat-message bot-message">🧙‍♀️ {message["content"]}</div>', unsafe_allow_html=True)
+    with st.chat_message("user" if message["role"] == "user" else "assistant"):
+        # AI 답변도 st.markdown으로 렌더링해 Markdown 포맷을 유지
+        st.markdown(message["content"])
 
-# 사용자 입력
-user_input = st.text_input("문제나 답변을 입력해주세요", key="user_input", placeholder="여기에 입력하세요...")
+# 사용자 입력 (chat_input으로 말풍선 UX)
+user_input = st.chat_input("문제나 답변을 입력해주세요")
 
 if user_input:
-    # 사용자 메시지 추가
+    # 사용자 메시지 추가 및 즉시 표시
     st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
     # 챗봇 프롬프트 설정
     prompt = """
@@ -134,16 +135,19 @@ if user_input:
 
 """
 
-    try:
-        # Gemini 모델에 메시지 전송
-        response = st.session_state.chat.send_message(f"{prompt}\n\n사용자: {user_input}")
-        assistant_message = response.text
-        
-        # 챗봇 메시지 추가
-        st.session_state.messages.append({"role": "assistant", "content": assistant_message})
-        
-        # 입력창 초기화를 위한 rerun
-        st.rerun()
-        
-    except Exception as e:
-        st.error(f"오류가 발생했습니다: {str(e)}")
+    with st.spinner("생각 중..."):
+        try:
+            # Gemini 모델에 메시지 전송
+            response = st.session_state.chat.send_message(f"{prompt}\n\n사용자: {user_input}")
+            assistant_message = response.text
+            
+            # 챗봇 메시지 추가 및 표시
+            st.session_state.messages.append({"role": "assistant", "content": assistant_message})
+            with st.chat_message("assistant"):
+                st.markdown(assistant_message)
+            
+            # 입력창 초기화를 위한 rerun
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"오류가 발생했습니다: {str(e)}")
