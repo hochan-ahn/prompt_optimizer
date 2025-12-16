@@ -100,6 +100,10 @@ for message in st.session_state.messages:
 user_input = st.chat_input("문제나 답변을 입력해주세요")
 
 if user_input:
+    # 매 질문마다 새로운 세션으로 초기화 (이전 대화/맥락 삭제)
+    st.session_state.chat = model.start_chat(history=[])
+    st.session_state.messages = []
+
     # 사용자 메시지 추가 및 즉시 표시
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
