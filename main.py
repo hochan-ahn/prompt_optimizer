@@ -8,6 +8,19 @@ st.set_page_config(
     layout="wide"
 )
 
+# Blockquote 제거 유틸 (코드블록 출력 시 '>' 접두어 제거)
+def strip_blockquote_prefix(text: str) -> str:
+    lines = text.splitlines()
+    cleaned = []
+    for line in lines:
+        if line.startswith("> "):
+            cleaned.append(line[2:])
+        elif line.startswith(">"):
+            cleaned.append(line[1:])
+        else:
+            cleaned.append(line)
+    return "\n".join(cleaned)
+
 # CSS 스타일 적용
 st.markdown("""
 <style>
@@ -57,7 +70,7 @@ except Exception as e:
     st.stop()
 
 # 모델 설정
-model = genai.GenerativeModel('gemini-2.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 세션 상태 초기화
 if "chat" not in st.session_state:
@@ -76,9 +89,10 @@ for message in st.session_state.messages:
                 pre, post = message["content"].split(marker, 1)
                 if pre.strip():
                     st.markdown(pre)
-                st.code(f"{marker}{post}", language="markdown")
+                block = strip_blockquote_prefix(f"{marker}{post}")
+                st.code(block, language="markdown")
             else:
-                st.code(message["content"], language="markdown")
+                st.code(strip_blockquote_prefix(message["content"]), language="markdown")
         else:
             st.markdown(message["content"])
 
@@ -158,9 +172,10 @@ if user_input:
                     pre, post = assistant_message.split(marker, 1)
                     if pre.strip():
                         st.markdown(pre)
-                    st.code(f"{marker}{post}", language="markdown")
+                    block = strip_blockquote_prefix(f"{marker}{post}")
+                    st.code(block, language="markdown")
                 else:
-                    st.code(assistant_message, language="markdown")
+                    st.code(strip_blockquote_prefix(assistant_message), language="markdown")
             
             # 입력창 초기화를 위한 rerun
             st.rerun()
