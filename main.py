@@ -70,9 +70,15 @@ if "chat" not in st.session_state:
 # 채팅 히스토리 표시 (말풍선 형태로 교차 출력)
 for message in st.session_state.messages:
     with st.chat_message("user" if message["role"] == "user" else "assistant"):
-        # AI 답변은 코드블록(마크다운 언어)으로 출력
         if message["role"] == "assistant":
-            st.code(message["content"], language="markdown")
+            marker = "### ✨ 최적화된 프롬프트"
+            if marker in message["content"]:
+                pre, post = message["content"].split(marker, 1)
+                if pre.strip():
+                    st.markdown(pre)
+                st.code(f"{marker}{post}", language="markdown")
+            else:
+                st.code(message["content"], language="markdown")
         else:
             st.markdown(message["content"])
 
@@ -147,8 +153,14 @@ if user_input:
             # 챗봇 메시지 추가 및 표시
             st.session_state.messages.append({"role": "assistant", "content": assistant_message})
             with st.chat_message("assistant"):
-                # 답변을 Markdown 코드 블록 형태로 표시
-                st.code(assistant_message, language="markdown")
+                marker = "### ✨ 최적화된 프롬프트"
+                if marker in assistant_message:
+                    pre, post = assistant_message.split(marker, 1)
+                    if pre.strip():
+                        st.markdown(pre)
+                    st.code(f"{marker}{post}", language="markdown")
+                else:
+                    st.code(assistant_message, language="markdown")
             
             # 입력창 초기화를 위한 rerun
             st.rerun()
