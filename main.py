@@ -70,7 +70,7 @@ except Exception as e:
     st.stop()
 
 # 모델 설정
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 # 세션 상태 초기화
 if "chat" not in st.session_state:
@@ -177,3 +177,4 @@ for message in st.session_state.messages:
                 st.code(strip_blockquote_prefix(message["content"]), language="markdown")
         else:
             st.markdown(message["content"])
+
