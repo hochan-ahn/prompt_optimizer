@@ -1,113 +1,91 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 페이지 설정
+# --- 1. 페이지 설정 ---
 st.set_page_config(
     page_title="프롬프트 개선 테스트",
-    page_icon="🤑",
+    page_icon="⚡",
     layout="wide"
 )
 
-# Blockquote 제거 유틸 (코드블록 출력 시 '>' 접두어 제거)
-def strip_blockquote_prefix(text: str) -> str:
-    lines = text.splitlines()
-    cleaned = []
-    for line in lines:
-        if line.startswith("> "):
-            cleaned.append(line[2:])
-        elif line.startswith(">"):
-            cleaned.append(line[1:])
-        else:
-            cleaned.append(line)
-    return "\n".join(cleaned)
-
-# CSS 스타일 적용
+# --- 2. 스타일 및 유틸리티 ---
 st.markdown("""
 <style>
-    .stApp {
-        background-color: #f5f5f5;
-    }
-    .chat-message {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        line-height: 1.5;
-    }
-    .user-message {
-        background-color: #e3f2fd;
-        border-left: 5px solid #2196f3;
-    }
-    .bot-message {
-        background-color: #f3e5f5;
-        border-left: 5px solid #9c27b0;
-    }
+    .stApp { background-color: #f5f5f5; }
     .main-title {
-        color: #6a1b9a;
-        text-align: center;
-        padding: 2rem 0;
-        font-size: 2.5rem;
-        font-weight: bold;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        color: #6a1b9a; text-align: center; padding: 2rem 0;
+        font-size: 2.5rem; font-weight: bold;
     }
-    .description {
-        text-align: center;
-        color: #666;
-        font-size: 1.2rem;
-        margin-bottom: 2rem;
-    }
+    .description { text-align: center; color: #666; margin-bottom: 2rem; }
+    /* 코드 블록 스타일 조정 */
+    .stCodeBlock { background-color: #ffffff !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# 제목과 설명
-st.markdown('<h1 class="main-title">프롬프트 개선 테스트</h1>', unsafe_allow_html=True)
-st.markdown('<p class="description">프롬프트 개선 테스트용 페이지입니다.</p>', unsafe_allow_html=True)
+def strip_blockquote_prefix(text: str) -> str:
+    """인용구 포맷(>)을 제거하여 순수 마크다운/코드로 변환"""
+    lines = text.splitlines()
+    cleaned = []
+    for line in lines:
+        if line.startswith("> "): cleaned.append(line[2:])
+        elif line.startswith(">"): cleaned.append(line[1:])
+        else: cleaned.append(line)
+    return "\n".join(cleaned)
 
-# Gemini API 설정을 위한 사이드바 (사용자별 API 키 입력)
+# --- 3. 사이드바 및 API 설정 ---
 with st.sidebar:
-    st.header("⚙️ Gemini API 설정")
-    user_api_key = st.text_input(
-        "Gemini API Key를 입력하세요",
-        type="password",
-        help="Google AI Studio에서 발급받은 본인의 Gemini API 키를 입력하면 됩니다."
-    )
+    st.header("⚙️ 설정")
+    user_api_key = st.text_input("Gemini API Key", type="password")
 
-# 키가 없으면 진행 중단 (모든 사용자가 자기 키를 넣어야 사용 가능)
 if not user_api_key:
-    st.warning("왼쪽 사이드바에 **Gemini API Key**를 입력해야 챗봇을 사용할 수 있습니다.")
+    st.info("👈 사이드바에 API Key를 입력해주세요.")
     st.stop()
 
-# Gemini API 설정 (사용자가 입력한 키로 설정)
+# 리소스 캐싱: API 설정은 키가 바뀔 때만 다시 실행
+@st.cache_resource
+def configure_genai(api_key):
+    genai.configure(api_key=api_key)
+    return genai.GenerativeModel('gemini-2.5-flash')
+
 try:
-    genai.configure(api_key=user_api_key)
+    model = configure_genai(user_api_key)
 except Exception as e:
-    st.error(f"API 키 설정 중 오류가 발생했습니다: {e}")
+    st.error(f"API 설정 오류: {e}")
     st.stop()
 
-# 모델 설정
-model = genai.GenerativeModel('gemini-2.5-flash')
+# --- 4. 세션 상태 초기화 ---
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "assistant", "content": "어떤 프롬프트를 개선해 드릴까요?"}
+    ]
 
-# 세션 상태 초기화
-if "chat" not in st.session_state:
-    st.session_state.chat = model.start_chat(history=[])
-    st.session_state.messages = []
-    # 초기 메시지 추가
-    initial_message = "프롬프트를 입력해주세요"
-    st.session_state.messages.append({"role": "assistant", "content": initial_message})
+# --- 5. UI 렌더링 (순서 중요: 과거 메시지 먼저 출력) ---
+st.markdown('<h1 class="main-title">프롬프트 개선 테스트</h1>', unsafe_allow_html=True)
 
-# 사용자 입력 (chat_input으로 말풍선 UX)
-user_input = st.chat_input("문제나 답변을 입력해주세요")
+# 기존 대화 기록 출력
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        # Assistant 메시지 중 특정 마커가 있으면 코드 블록으로 변환 표시
+        if message["role"] == "assistant" and "### ✨ 최적화된 프롬프트" in message["content"]:
+            marker = "### ✨ 최적화된 프롬프트"
+            parts = message["content"].split(marker, 1)
+            st.markdown(parts[0]) # 분석 내용
+            if len(parts) > 1:
+                st.markdown(marker)
+                # 코드 블록으로 깔끔하게 보여주기
+                code_content = strip_blockquote_prefix(parts[1])
+                st.code(code_content, language="markdown")
+        else:
+            st.markdown(message["content"])
 
-if user_input:
-    # 새 질문이 들어오면 즉시 이전 대화/맥락 삭제 후 새 세션으로 시작
-    st.session_state.chat = model.start_chat(history=[])
-    st.session_state.messages = []
+# --- 6. 사용자 입력 처리 ---
+if user_input := st.chat_input("개선할 프롬프트 내용을 입력하세요"):
+    # 1) 사용자 메시지 즉시 표시 및 저장
+    st.chat_message("user").markdown(user_input)
+    st.session_state.messages.append({"role": "user", "content": user_input})
 
-    # 사용자 메시지 즉시 표시
-    with st.chat_message("user"):
-        st.markdown(user_input)
-
-    # 챗봇 프롬프트 설정
-    prompt = """
+    # 2) 봇 응답 생성
+    prompt_template = """
 ## Role & Objective
 당신은 Google Gemini API 및 LLM 활용에 통달한 **'수석 프롬프트 엔지니어(Chief Prompt Engineer)'**입니다. 
 당신의 목표는 사용자의 요청을 분석하여, 상황에 맞춰 내용을 갈아 끼울 수 있는 **'최적화된 프롬프트 템플릿'**을 설계해 주는 것입니다.
@@ -160,34 +138,29 @@ if user_input:
 지금부터 사용자의 입력을 분석하여, 사용자가 원하는 데이터를 나중에 채워 넣을 수 있는 **'재사용 가능한 프롬프트 양식'**을 작성하십시오. 임의로 예시를 채워 넣어 템플릿의 범용성을 해치지 마십시오.
 
 """
-
-    with st.spinner("생각 중..."):
-        try:
-            # Gemini 모델에 메시지 전송
-            response = st.session_state.chat.send_message(f"{prompt}\n\n사용자: {user_input}")
-            assistant_message = response.text
-
-            # 챗봇 메시지 상태에 저장
-            st.session_state.messages.append({"role": "assistant", "content": assistant_message})
-
-            # 응답이 준비되면 새 상태로 다시 렌더링
-            st.rerun()
-
-        except Exception as e:
-            st.error(f"오류가 발생했습니다: {str(e)}")
-
-# 채팅 히스토리 표시 (말풍선 형태로 교차 출력)
-for message in st.session_state.messages:
-    with st.chat_message("user" if message["role"] == "user" else "assistant"):
-        if message["role"] == "assistant":
-            marker = "### ✨ 최적화된 프롬프트"
-            if marker in message["content"]:
-                pre, post = message["content"].split(marker, 1)
-                if pre.strip():
+    
+    with st.chat_message("assistant"):
+        with st.spinner("프롬프트 최적화 중..."):
+            try:
+                # 챗 세션을 매번 초기화하는 로직이므로 generate_content 사용이 더 안정적
+                response = model.generate_content(f"{prompt_template}\n\n사용자 요청: {user_input}")
+                assistant_message = response.text
+                
+                # 3) 화면 출력 로직 (위의 렌더링 로직과 동일하게 적용)
+                marker = "### ✨ 최적화된 프롬프트"
+                if marker in assistant_message:
+                    pre, post = assistant_message.split(marker, 1)
                     st.markdown(pre)
-                block = strip_blockquote_prefix(f"{marker}{post}")
-                st.code(block, language="markdown")
-            else:
-                st.code(strip_blockquote_prefix(message["content"]), language="markdown")
-        else:
-            st.markdown(message["content"])
+                    st.markdown(marker)
+                    st.code(strip_blockquote_prefix(post), language="markdown")
+                else:
+                    st.markdown(assistant_message)
+
+                # 4) 대화 기록에 저장
+                st.session_state.messages.append({"role": "assistant", "content": assistant_message})
+            
+            except Exception as e:
+                st.error(f"오류 발생: {e}")
+
+# (중요) 여기에 st.rerun()을 쓰지 않습니다. 
+# Streamlit은 위 코드가 끝나는 순간, 사용자가 다시 입력할 때까지 대기 상태가 됩니다.
