@@ -70,7 +70,7 @@ except Exception as e:
     st.stop()
 
 # 모델 설정
-model = genai.GenerativeModel('gemini-2.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 세션 상태 초기화
 if "chat" not in st.session_state:
@@ -80,32 +80,15 @@ if "chat" not in st.session_state:
     initial_message = "프롬프트를 입력해주세요"
     st.session_state.messages.append({"role": "assistant", "content": initial_message})
 
-# 채팅 히스토리 표시 (말풍선 형태로 교차 출력)
-for message in st.session_state.messages:
-    with st.chat_message("user" if message["role"] == "user" else "assistant"):
-        if message["role"] == "assistant":
-            marker = "### ✨ 최적화된 프롬프트"
-            if marker in message["content"]:
-                pre, post = message["content"].split(marker, 1)
-                if pre.strip():
-                    st.markdown(pre)
-                block = strip_blockquote_prefix(f"{marker}{post}")
-                st.code(block, language="markdown")
-            else:
-                st.code(strip_blockquote_prefix(message["content"]), language="markdown")
-        else:
-            st.markdown(message["content"])
-
 # 사용자 입력 (chat_input으로 말풍선 UX)
 user_input = st.chat_input("문제나 답변을 입력해주세요")
 
 if user_input:
-    # 매 질문마다 새로운 세션으로 초기화 (이전 대화/맥락 삭제)
+    # 새 질문이 들어오면 즉시 이전 대화/맥락 삭제 후 새 세션으로 시작
     st.session_state.chat = model.start_chat(history=[])
     st.session_state.messages = []
 
-    # 사용자 메시지 추가 및 즉시 표시
-    st.session_state.messages.append({"role": "user", "content": user_input})
+    # 사용자 메시지 즉시 표시
     with st.chat_message("user"):
         st.markdown(user_input)
 
@@ -161,6 +144,7 @@ if user_input:
 
 ## Initialization
 지금부터 사용자의 입력을 분석하여, 사용자가 원하는 데이터를 나중에 채워 넣을 수 있는 **'재사용 가능한 프롬프트 양식'**을 작성하십시오. 임의로 예시를 채워 넣어 템플릿의 범용성을 해치지 마십시오.
+
 """
 
     with st.spinner("생각 중..."):
@@ -168,24 +152,28 @@ if user_input:
             # Gemini 모델에 메시지 전송
             response = st.session_state.chat.send_message(f"{prompt}\n\n사용자: {user_input}")
             assistant_message = response.text
-            
-            # 챗봇 메시지 추가 및 표시
+
+            # 챗봇 메시지 상태에 저장
             st.session_state.messages.append({"role": "assistant", "content": assistant_message})
-            with st.chat_message("assistant"):
-                marker = "### ✨ 최적화된 프롬프트"
-                if marker in assistant_message:
-                    pre, post = assistant_message.split(marker, 1)
-                    if pre.strip():
-                        st.markdown(pre)
-                    block = strip_blockquote_prefix(f"{marker}{post}")
-                    st.code(block, language="markdown")
-                else:
-                    st.code(strip_blockquote_prefix(assistant_message), language="markdown")
-            
-            # 입력창 초기화를 위한 rerun
+
+            # 응답이 준비되면 새 상태로 다시 렌더링
             st.rerun()
-            
+
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
 
-
+# 채팅 히스토리 표시 (말풍선 형태로 교차 출력)
+for message in st.session_state.messages:
+    with st.chat_message("user" if message["role"] == "user" else "assistant"):
+        if message["role"] == "assistant":
+            marker = "### ✨ 최적화된 프롬프트"
+            if marker in message["content"]:
+                pre, post = message["content"].split(marker, 1)
+                if pre.strip():
+                    st.markdown(pre)
+                block = strip_blockquote_prefix(f"{marker}{post}")
+                st.code(block, language="markdown")
+            else:
+                st.code(strip_blockquote_prefix(message["content"]), language="markdown")
+        else:
+            st.markdown(message["content"])
