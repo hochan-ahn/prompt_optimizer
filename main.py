@@ -70,7 +70,7 @@ except Exception as e:
     st.stop()
 
 # 모델 설정
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 # 세션 상태 초기화
 if "chat" not in st.session_state:
@@ -186,3 +186,4 @@ if user_input:
             
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
+
