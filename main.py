@@ -144,7 +144,8 @@ if user_input:
             # 챗봇 메시지 추가 및 표시
             st.session_state.messages.append({"role": "assistant", "content": assistant_message})
             with st.chat_message("assistant"):
-                st.markdown(assistant_message)
+                # 답변을 Markdown 코드 블록 형태로 표시
+                st.code(assistant_message, language="markdown")
             
             # 입력창 초기화를 위한 rerun
             st.rerun()
